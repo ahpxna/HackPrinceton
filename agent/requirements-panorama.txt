@@ -1,0 +1,8 @@
+# Optional local panorama classification, installed into .venv-agent.
+torch==2.15.0
+transformers==5.23.0
+huggingface-hub==2.4.0
+safetensors==0.8.0
+tokenizers==0.23.3
+pillow==13.0.0
+numpy==2.5.4

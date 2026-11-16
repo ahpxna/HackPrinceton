@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Captured home · free walk</title>
+<style>body{margin:0;background:#111;color:#111;font:14px system-ui}canvas{display:block}aside{position:fixed;top:12px;left:12px;max-width:370px;max-height:calc(100dvh - 190px);overflow:auto;background:#fff;padding:14px;z-index:2}p{margin:8px 0}button,label{margin-right:10px}#status{font-variant-numeric:tabular-nums}#joystick{position:fixed;bottom:max(24px,env(safe-area-inset-bottom));left:max(24px,env(safe-area-inset-left));width:120px;height:120px;border:2px solid #fff9;border-radius:50%;background:#2228;z-index:3;touch-action:none;user-select:none}#joystick[hidden]{display:none}#stick{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:#fffc;pointer-events:none}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","@sparkjsdev/spark":"./vendor/spark.module.js","three/addons/postprocessing/Pass.js":"./vendor/Pass.js"}}</script>
+</head><body><button id="helpToggle" type="button" hidden aria-label="Help and settings" aria-controls="helpPanel" aria-expanded="false" style="position:fixed;top:12px;left:12px;width:32px;height:32px;border-radius:50%;z-index:4;background:#fff;border:1px solid #bbb">i</button><aside id="helpPanel"><strong>As captured</strong><p>Drag to look · W/S or ↑/↓ walk · A/D strafe · ←/→ turn · Shift to move faster · Click floor to walk there</p>
+<p>Tap to step 0.30 m or turn 15° · Touch: joystick moves, drag elsewhere to look</p>
+<p><label><input id="controls" type="checkbox"> on-screen controls</label></p>
+<label>Eye height <input id="height" type="range" min="1.1" max="2.0" value="1.6" step="0.05"> <span id="heightValue">1.6</span> m</label>
+<p><button id="reset">Reset</button><label><input id="mesh" type="checkbox"> Show collision mesh</label></p>
+<p><label><input id="ghost" type="checkbox"> Walk through walls and furniture</label></p>
+<p><small id="ghostNote" role="status" aria-live="polite"></small></p>
+<p><label><input id="photos" type="checkbox" checked> Real photo projection</label></p>
+<p><button id="roof" type="button" aria-pressed="false">Ẩn mái</button><button id="aerial" type="button">Nhìn từ trên</button></p>
+<p><label><input id="neighbourhood" type="checkbox" checked> Khu phố khi nhìn từ trên</label><small id="neighbourhoodStatus" role="status"></small></p>
+<div id="furnitureTools"></div>
+<style>#furnitureTools>section{position:static!important;width:auto!important;max-height:30vh!important;margin-top:10px}</style>
+<p>Near capture points: the real 360 photo projected onto scanned geometry. Elsewhere: Gaussian splat. Magenta = never seen.</p>
+<p><label><input id="coverage" type="checkbox"> not captured by the scan</label></p>
+<p>Magenta: estimated never seen. Amber: flat mean-colour patch, an approximation from captured ring pixels. Patches are always labelled here and are excluded from training.</p>
+<p>Collision uses simple_planes and fused depth. Unsupported floor is blocked. Unknown walls can still be missing.</p>
+<p id="status">Loading…</p><button id="save">Save browser FPS proof</button></aside>
+<div id="joystick" role="group" aria-label="Movement joystick" hidden><div id="stick"></div></div>
+<nav id="aerialZoom" aria-label="Aerial camera" hidden style="position:fixed;right:16px;bottom:24px;z-index:5;background:white;padding:8px"><button id="zoomIn" type="button" aria-label="Zoom in">+</button><button id="zoomOut" type="button" aria-label="Zoom out">−</button><button id="walkReturn" type="button">Về đi bộ</button></nav>
+<div id="neighbourhoodLabel" hidden style="position:fixed;left:12px;right:12px;bottom:0;z-index:4;background:white;font-size:11px;padding:4px;pointer-events:none"></div>
+<script type="module" src="./main.js?v=w26-1"></script><script type="module" src="./walk-controls.js?v=w26-1"></script>
+</body></html>

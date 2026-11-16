@@ -1,0 +1,33 @@
+--- a/tools/run_splat.py
++++ b/tools/run_splat.py
+@@ -189,6 +189,11 @@
+                                self.home / 'poses.json', self.home / 'rooms.json', self.home / 'mesh/mesh_500k.obj']},
+                       captures={f"{p['id']}/{f}": digest(self.home / 'faces_2k' / p['id'] / f'face{f}.jpg')
+                                 for p in self.panos for f in range(6)})
++        if os.environ.get('HP_SPLAT_DEPTH') == 'mast3r':
++            import mast3r_depth
++            config.update(depth_method='mast3r', depth_input_size=512,
++                          depth_revision=mast3r_depth.REVISION, mast3r=mast3r_depth.settings())
++            config['sources']['mast3r_depth.py'] = digest(HERE / 'mast3r_depth.py')
+         imported = self.work / 'reuse_manifest.json'
+         if imported.exists():
+             from reuse_stages import validate_import
+@@ -227,6 +232,9 @@
+         return self.cache / f"{p['id']}_{f}.npy"
+ 
+     def depth(self):
++        if os.environ.get('HP_SPLAT_DEPTH') == 'mast3r':
++            from mast3r_depth import generate
++            return generate(self)
+         cache = Path(os.environ.get('HP_SPLAT_DEPTH_CACHE', str(Path.home() / '.cache/hp-splat/depth')))
+         code = cache / ('Depth-Anything-V2-' + DEPTH_REV)
+         if not (code / 'metric_depth/depth_anything_v2/dpt.py').exists():
+@@ -352,6 +360,8 @@
+             raise RuntimeError('Not enough independent calibration/validation pairs')
+         ratios = np.array([np.array(r['metric_z']) / r['pred_z'] for r in fit]).ravel()
+         scale = float(np.median(ratios))
++        if os.environ.get('HP_SPLAT_DEPTH') == 'mast3r':
++            print(f'S4 known-pose MASt3R calibration global scale={scale:.6f} (expected near 1)', flush=True)
+         residual, depth_error, baseline_m = [], [], []
+         for r in val:
+             predicted = scale * (np.array(r['rays'][0]) * r['pred_z'][0] - np.array(r['rays'][1]) * r['pred_z'][1])

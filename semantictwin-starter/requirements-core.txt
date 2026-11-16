@@ -1,0 +1,3 @@
+# Minimal CPU-only core: does not install Nerfstudio, Torch, or CUDA.
+numpy>=1.24,<3
+Pillow>=9.5

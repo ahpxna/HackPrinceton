@@ -1,0 +1,17 @@
+[
+  {
+    "sid": "HFwcH424n9w",
+    "format": "SPZ",
+    "path": "models/HFwcH424n9w/scene.spz",
+    "bytes": 71122066,
+    "sha256": "93adb324d267ad9398f4947d8572c6be0427ab9500448599e7e80f1e7e98904e",
+    "training_steps": 94454
+  },
+  {
+    "sid": "VN4b1MGnnCR",
+    "format": "SPZ",
+    "path": "models/VN4b1MGnnCR/scene.spz",
+    "bytes": 69081581,
+    "sha256": "87035254aca7fa095d329db7212368b5202ed60233d7992b14ade313a2c7804f"
+  }
+]
