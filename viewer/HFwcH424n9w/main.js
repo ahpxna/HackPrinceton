@@ -180,11 +180,17 @@ function createPhotoLayer(renderer, collision, captures, initialClassic = true, 
     grid.tornTris = 0;
     return grid;
   }
-  let worker, workerJob, workerDisabled = typeof Worker === 'undefined';
-  function failWorker() {
-    workerDisabled = true; worker?.terminate(); worker = null;
+  let worker, workerJob, workerRequest = 0, workerDisabled = typeof Worker === 'undefined';
+  function resetWorker() {
+    const previousWorker = worker;
+    worker = null;
+    previousWorker?.terminate();
     if (workerJob) workerJob.target.building = false;
     workerJob = null;
+  }
+  function failWorker() {
+    workerDisabled = true;
+    resetWorker();
   }
   function getWorker() {
     if (workerDisabled) return null;
@@ -197,21 +203,25 @@ function createPhotoLayer(renderer, collision, captures, initialClassic = true, 
               const start = performance.now();
               const raw = depthPhotoGrid(data.capture, data.face, data.buffer, data.size, data.step, data.cameraFar);
               const grid = tearPhotoGrid(raw, data.capture);
-              postMessage({ grid, ms: performance.now() - start },
+              postMessage({ requestId: data.requestId, grid, ms: performance.now() - start },
                 [grid.positions.buffer, grid.uvs.buffer, grid.photoFaces.buffer, grid.indices.buffer]);
-            } catch { postMessage({ error: true }); }
+            } catch { postMessage({ requestId: data.requestId, error: true }); }
           };`;
         url = URL.createObjectURL(new Blob([script], { type: 'text/javascript' }));
-        worker = new Worker(url);
-        worker.onmessage = ({ data }) => {
-          const job = workerJob; workerJob = null;
-          if (!job) return;
+        const activeWorker = worker = new Worker(url);
+        activeWorker.onmessage = ({ data }) => {
+          const job = workerJob;
+          if (worker !== activeWorker || !job || data.requestId !== job.requestId) return;
+          workerJob = null;
           job.target.building = false;
           if (data.error) { failWorker(); return; }
           if (!job.target.cancelled) job.target.result = data;
         };
-        worker.onerror = event => { event.preventDefault?.(); failWorker(); };
-        worker.onmessageerror = failWorker;
+        activeWorker.onerror = event => {
+          event.preventDefault?.();
+          if (worker === activeWorker) failWorker();
+        };
+        activeWorker.onmessageerror = () => { if (worker === activeWorker) failWorker(); };
       } catch { failWorker(); }
       finally { if (url) URL.revokeObjectURL(url); }
     }
@@ -273,8 +283,8 @@ function createPhotoLayer(renderer, collision, captures, initialClassic = true, 
     if (!target.result && activeWorker) {
       if (!workerJob) {
         const buffer = entry.ranges[face].slice(0);
-        workerJob = { target }; target.building = true;
-        try { activeWorker.postMessage({ capture: { position: entry.capture.position,
+        workerJob = { target, requestId: ++workerRequest }; target.building = true;
+        try { activeWorker.postMessage({ requestId: workerJob.requestId, capture: { position: entry.capture.position,
           face_bases_center_right_down: entry.capture.face_bases_center_right_down },
           face, buffer, size: entry.depthSize, step: target.grid === 129 ? 2 : 1, cameraFar, classic0200 }, [buffer]); }
         catch { failWorker(); }
@@ -553,7 +563,7 @@ function createPhotoLayer(renderer, collision, captures, initialClassic = true, 
       const next = !!value;
       if (next === classic0200) return;
       classic0200 = next; state.profile = classic0200 ? 'view-motion' : 'w21';
-      if (workerJob) { workerJob.target.building = false; workerJob = null; }
+      resetWorker();
       for (const entry of cache.values()) {
         disposeMesh(entry.fullMesh); entry.fullMesh = null;
         if (entry.depthStatus === 'loaded') {
@@ -624,17 +634,26 @@ function governPixelRatio(renderer) {
     : Number(new URLSearchParams(globalThis.location?.search ?? '').get('pr'));
   const fixed = requested >= 1 && requested <= 2;
   let ratio = fixed ? requested : maximum, previous, elapsed = 0, frames = 0, fastMs = 0;
+  let raisedAt = -Infinity, recoveryAfter = 0;
   renderer.setPixelRatio(ratio);
   const setLoop = renderer.setAnimationLoop.bind(renderer);
   renderer.setAnimationLoop = callback => setLoop(callback && (time => {
-    if (previous !== undefined) { elapsed += Math.max(0, time - previous); frames++; }
+    if (previous !== undefined) {
+      const interval = Math.max(0, time - previous);
+      if (interval > 250) { elapsed = 0; frames = 0; fastMs = 0; }
+      else { elapsed += interval; frames++; }
+    }
     previous = time;
     if (!fixed && elapsed >= 1000) {
       const average = elapsed / frames;
-      fastMs = average < 13 ? fastMs + elapsed : 0;
+      fastMs = average < 18 && time >= recoveryAfter ? fastMs + elapsed : 0;
       const next = average > 22 ? Math.max(1, ratio - .25)
         : fastMs >= 3000 ? Math.min(maximum, ratio + .25) : ratio;
-      if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); fastMs = 0; }
+      if (next !== ratio) {
+        if (next > ratio) raisedAt = time;
+        else if (time - raisedAt < 4000) recoveryAfter = time + 15000;
+        ratio = next; renderer.setPixelRatio(ratio); fastMs = 0;
+      }
       elapsed = 0; frames = 0;
     }
     if (window.walkState) window.walkState.pixelRatio = ratio;

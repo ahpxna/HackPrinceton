@@ -41,3 +41,14 @@ valid photo pixels. Camera eye height stays fixed between resets on stairs.
 The local routing/render-state guard, depth/worker guard, module guard and 3,070
 HTTP asset checks passed. A post-deployment GPU walkthrough remains unverified
 because browser approval review was quota-blocked; no frame-rate guarantee is made.
+
+
+## HF viewer recovery (W27)
+
+Automatic resolution now recovers at a steady 60 Hz. Photo-worker requests are
+isolated across profile resets, including late replies and errors. The local
+depth/worker, routing and module guards passed, along with 3,070 HTTP assets and
+15 JavaScript modules. Browser smoke tests on both local ports loaded full 256
+grids and 2K textures, moved across captures and recovered resolution without
+page errors. Photo/depth seams and slow frames during movement remain; this is
+not a guarantee of smooth rendering. The trained models are unchanged.

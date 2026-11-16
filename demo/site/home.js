@@ -2,7 +2,7 @@ import {$,dates,dateLabel,minute,timeLabel,compass,colors,element,json,options,m
 import {renderClaims,buyerText} from './claims.js?v=2';
 import {connectAgent} from './agent.js?v=4';
 import {mountTour} from './tour.js?v=8';
-import {mountMerge} from './merge.js?v=w26-1';
+import {mountMerge} from './merge.js?v=w27-1';
 let tour;
 const canvas=$('plan'),ctx=canvas.getContext('2d');
 let data,image,day,frame=0,selectedWindow=null,hoverRoom=null,timer=null,zoom=1,roomPaths=[],windowLines=[],claimRooms=new Set(),claimWindows=new Set(),view,imageMessage='Plan only · aerial photos are included for the 36 selected examples';
