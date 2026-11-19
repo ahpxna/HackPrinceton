@@ -2,8 +2,9 @@ import {$,dates,dateLabel,minute,timeLabel,compass,colors,element,json,options,m
 import {renderClaims,buyerText} from './claims.js?v=2';
 import {connectAgent} from './agent.js?v=4';
 import {mountTour} from './tour.js?v=8';
-import {mountMerge} from './merge.js?v=w27-1';
-let tour;
+import {mountMerge} from './merge.js?v=w31-1';
+import {mountScanObjects} from './scan-objects.js?v=w34-1';
+let tour,scan;
 const canvas=$('plan'),ctx=canvas.getContext('2d');
 let data,image,day,frame=0,selectedWindow=null,hoverRoom=null,timer=null,zoom=1,roomPaths=[],windowLines=[],claimRooms=new Set(),claimWindows=new Set(),view,imageMessage='Plan only · aerial photos are included for the 36 selected examples';
 const currentDate=()=>$('sun-date').value;
@@ -61,6 +62,7 @@ function draw(){
  ctx.beginPath();ctx.arc(...anchor,6,0,Math.PI*2);ctx.fill();ctx.textAlign='center';ctx.font='11px system-ui';ctx.fillStyle='#fff';ctx.fillText('Sun',anchor[0],anchor[1]-12);
  }
  const bar=5*scale;ctx.fillStyle='#ffffffee';ctx.fillRect(17,height-31,bar,3);ctx.textAlign='left';ctx.fillText('5 m',17,height-38);
+ scan?.draw(ctx,p=>xy(p,registered()),currentFloor());
  $('map-label').textContent=data.contained_partial?containedLabel:data.placement_status!=='well'?'Placement on the aerial photo uncertain · sun estimate withheld':registered()?`Placed on the aerial photo · ${dateLabel(currentDate())} ${timeLabel(day.local_times[frame])} · yellow = direct floor sun`:'As delivered · red walls · sun cells hidden';
 }
 function updateFrame(){
@@ -123,7 +125,7 @@ try{
  const middle=centers.reduce((s,p)=>[s[0]+p[0]/centers.length,s[1]+p[1]/centers.length],[0,0]);
  data.rooms.forEach((r,i)=>{const c=transform(centers[i]),m=transform(middle),az=(Math.atan2(c[0]-m[0],c[1]-m[1])*180/Math.PI+360)%360,side={N:'north',NE:'northeast',E:'east',SE:'southeast',S:'south',SW:'southwest',W:'west',NW:'northwest'}[compass(az)];roomNames.set(r.id,`${r.label.replace('Unlabelled room','Room (no label)')} · ${side} · ${Math.round(r.area_m2)} m²`);});
  function selectClaim(rooms,windows){claimRooms=new Set(rooms);claimWindows=new Set(windows);const room=data.rooms.find(r=>claimRooms.has(r.id))||Object.entries(data.claim_room_outlines||{}).find(([id])=>claimRooms.has(id))?.[1];if(room)$('floor').value=room.floor_id;const w=data.windows.find(w=>claimWindows.has(w.id));if(w)setWindow(w.id);tour?.goTo(rooms,windows);draw();}
- tour=mountTour(data,merge);roomTable();$('price').textContent=money(data.listing.price);const claimUI=renderClaims(data,selectClaim);
+ tour=mountTour(data,merge);roomTable();mountScanObjects(sid,{redraw:()=>updateFrame()}).then(s=>{scan=s;draw();});$('price').textContent=money(data.listing.price);const claimUI=renderClaims(data,selectClaim);
  $('assumptions').append(element('p','Scan room labels and ceiling dimensions come from the supplied model and may be incomplete. Windows are treated as clear glazing. Exterior doors are conditionally transparent, with actual glazing unknown.'),element('p','Own roof and neighbouring buildings block direct sun. Eave height and floor-to-ground height are assumed. Trees, weather, diffuse light, blinds and furniture are mostly not modelled.'),element('p',`Floor cells come from the same Python engine as the room totals. Maximum cell-area difference checked against saved output: ${data.engine_provenance.max_cell_area_difference_m2} m². Five-minute steps; 0.10 m floor grid.`));
  setDate();if(data.placement_status!=='well')document.querySelector('.sun-controls').hidden=true;
  const initial=data.windows.find(w=>w.id==='F0E4O0')||data.windows.find(w=>data.window_assets?.[w.id]?.inside&&data.window_assets?.[w.id]?.outside)||data.windows[0];if(initial)setWindow(initial.id);

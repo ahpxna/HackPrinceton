@@ -45,6 +45,12 @@ rooms and missing visual observations do not establish absence.
 The listing-auditor's audit_home dossier contains panorama_evidence separately
 from listing claims, including exact source, confidence and model. Disabled
 labels answer "no panorama evidence".
+For objects placed in the 3D scan (bathtub, toilet, ceiling fan, garage door, stove and
+similar), use graph_search with source_kind "located in 3D scan"; audit_home returns them
+as scan_object_evidence. These are zero-shot detector boxes located on the scan mesh and
+merged across views, not human-verified objects. Their room link is the object position.
+object_count is an upper bound of detector clusters; never state it as an exact count.
+covered_by_roof does not mean indoors. Missing scan objects do not establish absence.
 Use panorama display_label in answers: detector label "hardwood floor" only
 supports "wood-look floor"; material is not established from these images.
 For a bedroom with beams and winter sun, require positive computed winter timing

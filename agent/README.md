@@ -209,6 +209,16 @@ Build cached JSON with `.venv-agent/bin/python -m agent.home_graph`. `data/claim
 
 Other fields: `needs`, `source_kind`, `min_area_m2`, `min_ceiling_height_m`. Features are attributed to `Matterport room label`, `listing says` or `seen in panorama`, with separate provenance. A listing clause attaches to a room only when it names one room type; primary-bedroom text requires a known room role. Listing features remain spatially unverified. The strict bedroom example currently returns empty; living-room beams have attributed matches. Empty hard requirements must not be silently dropped. The replay queries the graph during planning.
 
+### Objects located in the 3D scan (W34, HF home)
+
+`.venv-agent/bin/python -m agent.scan_objects` publishes `experiments/w34_perception/objects_hf/objects.json` (from `localize.py`) into the graph as features with `source_kind: "located in 3D scan"`.
+- **What is published:** only `confirmed` objects with a `home*` scope. They are grouped per label and room.
+- **Room link:** the object's own 3D point inside Matterport's closed room polygons. If the point sits on a boundary, it is pulled 0.3 m toward its best camera. Open polygons and room-type conflicts (for example, a bathtub in a "Hallway" polygon) leave the room unknown.
+- **Counts:** `object_count` is an upper bound of detector clusters.
+- **Sidecar:** `data/claims/graph/scan_objects/accepted_<sid>.json` records excluded objects from the best-view review and the input hashes. `build_graph` re-attaches it on rebuild.
+- **Agent:** `audit_home` returns these objects as `scan_object_evidence`.
+- **Demo:** `/api/scan-objects/<sid>` serves them to the home page panel and the plan markers.
+
 Buyer needs support city, budget, pool, ceilings, room/date/sun constraints and explicit nice-to-haves. Missing measurements never pass. After an empty search, one stated nice-to-have can be relaxed, with that change reported. Only four computed dates are available: `2026-12-21`, `2026-03-20`, `2026-06-21`, `2026-11-14`; arbitrary-date sun is unavailable. Viewing plans use November. Tree and placement caveats remain; contained partial scans are described as one unit in a larger building, not placed on the aerial photo.
 
 ## Privileges, analysis and evidence

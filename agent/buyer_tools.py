@@ -169,7 +169,14 @@ def inspect_claims(sid: str, additional_claims: list[dict] | None = None) -> dic
     for label,status in visual['labels'].items():
         if status['status']=='no panorama evidence':text+=f"{label}: no panorama evidence ({status['reason']}).\n"
     text+='Caveats: '+'; '.join(visual['caveats'])+'\n'
-    return dict(sid=sid,document=doc,dossier_md=text,facts=candidate_facts(sid),method='Local geometry and attributed listing claims; panorama observations are separate unverified CLIP classifications; no measured indoor brightness.')
+    from agent.home_graph import scan_object_evidence
+    located=scan_object_evidence(sid);doc['scan_object_evidence']=located
+    text+='Objects located in the 3D scan (local detector, separate from listing claims):\n'
+    for f in located['features']:
+        text+=f"{f['label']} | room: {f['room']} | clusters (upper bound): {f['object_count']} | best score (not probability): {f['confidence']} | source: {f['source']}\n"
+    if not located['features']:text+=located['status']+'.\n'
+    text+='Caveats: '+'; '.join(located['caveats'])+'\n'
+    return dict(sid=sid,document=doc,dossier_md=text,facts=candidate_facts(sid),method='Local geometry and attributed listing claims; panorama observations are separate unverified CLIP classifications; scan objects are unverified detector boxes located on the mesh; no measured indoor brightness.')
 
 
 def sun_analysis(sid: str, date: str = '2026-03-20') -> dict:

@@ -46,6 +46,23 @@ def matterport_dimensions(sid):
     return {'sid': sid, 'source': "Matterport's cached room dimension estimates", 'rooms': rooms}
 
 
+def scan_objects(sid):
+    """Confirmed objects located in the 3D scan (agent graph sidecar); best-view images go through /walk/."""
+    if not SID_PATTERN.fullmatch(sid):
+        raise ValueError('Invalid model identifier')
+    path = SITE.parent.parent / 'data/claims/graph/scan_objects' / f'accepted_{sid}.json'
+    if not path.is_file():
+        return {'available': False, 'features': []}
+    doc = json.loads(path.read_text())
+    prefix = f'data/splat/web/{sid}/'
+    for feature in doc['features']:
+        for o in feature['objects']:
+            image = o.get('image_file') or ''
+            o['image_url'] = f'/walk/{sid}/' + image[len(prefix):] if image.startswith(prefix) else None
+    return {'available': True, 'sid': sid, 'source_version': doc['source_version'], 'features': doc['features'],
+            'excluded': doc['excluded'], 'caveats': doc['caveats']}
+
+
 def sdk_key():
     value = os.environ.get('MATTERPORT_SDK_KEY', '')
     if value:
@@ -125,6 +142,11 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.reply(200, matterport_dimensions(path[len('/measure/data/'):]))
             except (OSError, ValueError, KeyError, TypeError):
                 return self.reply(200, {'rooms': [], 'available': False})
+        if path.startswith('/api/scan-objects/'):
+            try:
+                return self.reply(200, scan_objects(path.rsplit('/', 1)[-1]))
+            except (OSError, ValueError, KeyError, TypeError):
+                return self.reply(200, {'available': False, 'features': []})
         if path.startswith('/api/furniture/openings/'):
             try:
                 return self.reply(200, openings(path.rsplit('/', 1)[-1]))

@@ -29,6 +29,26 @@ def attach_panorama_features(doc):
     return doc
 
 
+SCAN_KIND='located in 3D scan'
+
+
+def attach_scan_objects(doc):
+    """Merge confirmed W34 scan objects (OWLv2 boxes located on the mesh) from their sidecar, including on rebuild."""
+    path=GRAPH/'scan_objects'/('accepted_'+doc['sid']+'.json')
+    if not path.exists():return doc
+    accepted=json.loads(path.read_text())
+    old={n['id'] for n in doc['nodes'] if n.get('source_kind')==SCAN_KIND}
+    doc['nodes']=[n for n in doc['nodes'] if n['id'] not in old]
+    doc['edges']=[e for e in doc['edges'] if e['source'] not in old and e['target'] not in old]
+    roomids={n['room_id']:n['id'] for n in doc['nodes'] if n['kind']=='room'}
+    for feature in accepted['features']:
+        doc['nodes'].append(feature)
+        rid=feature.get('room_id')
+        doc['edges'].append(dict(kind='room-feature' if rid in roomids else 'home-feature',source=roomids.get(rid,'home:'+doc['sid']),target=feature['id'],
+            scope='Zero-shot detector boxes located on the scan mesh and merged across views, not human verified; the room is the object position.'))
+    return doc
+
+
 def build_graph():
     """Materialize compact JSON from cached sources only; never modify upstream claims."""
     s=store();GRAPH.mkdir(parents=True,exist_ok=True);files=[];sources=set();counts={}
@@ -110,10 +130,12 @@ def build_graph():
                 cid=node('claim',str(i),text=c['text'],verdict=c['verdict'],topic=c['topic'],source_file=str(claimpath.relative_to(ROOT)))
                 edge('home-claim',hid,cid)
                 for rid in sorted({e.get('room_id') for e in c.get('evidence',[]) if e.get('room_id') in rids}):edge('claim-about-room',cid,'room:'+sid+':'+rid)
-        doc=attach_panorama_features(dict(sid=sid,nodes=nodes,edges=edges));nodes=doc['nodes']
+        doc=attach_scan_objects(attach_panorama_features(dict(sid=sid,nodes=nodes,edges=edges)));nodes=doc['nodes']
         for feature in nodes:
             if feature.get('source_kind')=='seen in panorama':
                 source(feature['source_file']);source(f'data/claims/graph/panorama_features/accepted_{sid}.json')
+            elif feature.get('source_kind')==SCAN_KIND:
+                source(feature['source_file']);source(f'data/claims/graph/scan_objects/accepted_{sid}.json')
         path=GRAPH/(sid+'.json');path.write_text(json.dumps(doc,separators=(',',':'),ensure_ascii=False))
         files.append(path.name)
         for n in nodes:counts[n['kind']]=counts.get(n['kind'],0)+1
@@ -158,6 +180,16 @@ def panorama_evidence(sid: str) -> dict:
                  'Disabled labels answer no panorama evidence. Missing evidence does not establish absence.'])
 
 
+def scan_object_evidence(sid: str) -> dict:
+    """Objects located on the scan mesh for one home, separate from listing claims and panorama crops."""
+    store().home(sid)
+    path=GRAPH/'scan_objects'/f'accepted_{sid}.json'
+    if not path.exists():return dict(status='no scan object evidence',features=[],excluded=[],caveats=['No located scan objects were published for this home. Missing evidence does not establish absence.'])
+    doc=json.loads(path.read_text())
+    return dict(status='found' if doc['features'] else 'no scan object evidence',source_version=doc['source_version'],
+                features=doc['features'],excluded=doc['excluded'],caveats=doc['caveats'])
+
+
 def graph_search(constraints: dict) -> dict:
     """Combine structured home/room/sun constraints with literal text alternatives (feature='beam|rafter'). Text stays attributed, never measured."""
     from agent.buyer_tools import matches,validate_needs
@@ -181,7 +213,7 @@ def graph_search(constraints: dict) -> dict:
         doc=json.loads((GRAPH/file).read_text());nodes={n['id']:n for n in doc['nodes']};features={}
         for e in doc['edges']:
             if e['kind']=='room-feature':features.setdefault(e['source'],[]).append((nodes[e['target']],e.get('scope')))
-            elif e['kind']=='home-feature' and nodes[e['target']].get('source_kind')=='seen in panorama':
+            elif e['kind']=='home-feature' and nodes[e['target']].get('source_kind') in ('seen in panorama',SCAN_KIND):
                 features.setdefault('unknown',[]).append((nodes[e['target']],e.get('scope')))
         rooms=[n for n in doc['nodes'] if n['kind']=='room']
         if features.get('unknown') and not any(k in constraints for k in ('room','min_sun_minutes','min_area_m2','min_ceiling_height_m')):
@@ -193,7 +225,8 @@ def graph_search(constraints: dict) -> dict:
             elif requested not in room['type'].casefold():continue
             values={'min_sun_minutes':room['sun_minutes'].get(date),'min_area_m2':room['area_m2'],'min_ceiling_height_m':room['ceiling_height_m']}
             if any(k in constraints and (v is None or v<constraints[k]) for k,v in values.items()):continue
-            feats=[dict({k:f[k] for k in ('text','source_kind','source_file','source','label','confidence','confidence_kind','model','model_revision','home','room','room_mapping','pano_id','face','image_file','crop','crop_definition','human_reviewed','spatially_verified','threshold') if k in f},scope=scope)
+            feats=[dict({k:f[k] for k in ('text','source_kind','source_file','source','label','confidence','confidence_kind','model','model_revision','home','room','room_mapping','pano_id','face','image_file','crop','crop_definition','human_reviewed','spatially_verified','threshold',
+                                                       'floor_id','object_count','count_kind','objects','spatially_located','location_method','review_note') if k in f},scope=scope)
                    for f,scope in features.get(room['id'],[]) if (not terms or any(t in f['text'].casefold() for t in terms))
                    and (not constraints.get('source_kind') or f['source_kind']==constraints['source_kind'])
                    and ('min_feature_confidence' not in constraints or f.get('confidence',-1)>=constraints['min_feature_confidence'])]

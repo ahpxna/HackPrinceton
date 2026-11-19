@@ -21,7 +21,7 @@ export function mountMerge(sid){
   comparison.hidden=!walking||!enabled;review.measureOk=ready;review.mode=walking?(enabled?'measure':'walk'):'tour';
  }
  function walkUrl(capture){
-  const params=new URLSearchParams();params.set('embed','1');if(capture)params.set('capture',capture);params.set('v','w27-1');
+  const params=new URLSearchParams();params.set('embed','1');if(capture)params.set('capture',capture);params.set('v','w31-1');
   return '/walk/'+encodeURIComponent(sid)+'/index.html?'+params;
  }
  function nearestCapture(){
